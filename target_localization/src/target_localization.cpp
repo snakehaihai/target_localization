@@ -21,83 +21,85 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <target_localization/bbox_array.h>
+#include <target_localization/bbox.h>
 ros::Publisher plane_pub;
 ros::Publisher ledge_pub;
 using namespace cv;
 using namespace std;
 
- Mat3b canvas;
-  string buttonText;
-  string buttonText2;
-  string winName,OPENCV_WINDOW;
-  Rect button, button2, button3, button4, button5;
-  void onMouse(int event, int x, int y, int flags, void* userdata)
+Mat3b canvas;
+string buttonText;
+string buttonText2;
+string winName,OPENCV_WINDOW;
+Rect button, button2, button3, button4, button5;
+void onMouse(int event, int x, int y, int flags, void* userdata)
+{
+  if (event == EVENT_LBUTTONDOWN)
   {
-    if (event == EVENT_LBUTTONDOWN)
-    {
-        if (button.contains(Point(x, y)))
-        {
+      if (button.contains(Point(x, y)))
+      {
+        
+          cout << "start search mission\n" << endl;
+
+          canvas(button) = Vec3b(50, 50, 50);
+          putText(canvas(button), buttonText, Point(button.width*0.35, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
+          putText(canvas(button2), buttonText2, Point(button.width*0.40, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
+          // to be added here
+          // run system script to go to fixed points
+
+      }
+      else if (button2.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
+      {
+          cout << "Cancel mission clicked\n" << endl;
+          // to be added here
+          // run system script to cancel all events  kill them all
+
+          putText(canvas(button), buttonText, Point(button.width*0.35, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
+          putText(canvas(button2), buttonText2, Point(button.width*0.40, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
+      }
+      else if (button3.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
+      {
           
-            cout << "start search mission\n" << endl;
-
-            canvas(button) = Vec3b(50, 50, 50);
-            putText(canvas(button), buttonText, Point(button.width*0.35, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
-            putText(canvas(button2), buttonText2, Point(button.width*0.40, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
-            // to be added here
-            // run system script to go to fixed points
-
-        }
-        else if (button2.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
-        {
-            cout << "Cancel mission clicked\n" << endl;
-            // to be added here
-            // run system script to cancel all events  kill them all
-
-            putText(canvas(button), buttonText, Point(button.width*0.35, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
-            putText(canvas(button2), buttonText2, Point(button.width*0.40, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
-        }
-        else if (button3.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
-        {
-            
-            cout << "Go place 1 pick item 1\n" << endl;
-            // this icon only lights up if item has been found
-            // go to pre-recored are to sweep the item
-            
-        }
-        else if (button4.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
-        {
-            
-            cout << "Go place 2 pick item 2\n" << endl;
-            // this icon only lights up if item has been found
-            // go to pre-recored are to sweep the item
-        }
-        else if (button5.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
-        {
-            
-            cout << "Go place 2 pick item 2\n" << endl;
-            // this icon only lights up if item has been found
-            // go to pre-recored are to sweep the item
-        }
-    }
-    //if (event == EVENT_LBUTTONUP)
-    //{
-    //rectangle(canvas, button, Scalar(200, 200, 200), 2);
-    //}
-
-   // imshow(winName, canvas);
-    //waitKey(1);
+          cout << "Go place 1 pick item 1\n" << endl;
+          // this icon only lights up if item has been found
+          // go to pre-recored are to sweep the item
+          
+      }
+      else if (button4.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
+      {
+          
+          cout << "Go place 2 pick item 2\n" << endl;
+          // this icon only lights up if item has been found
+          // go to pre-recored are to sweep the item
+      }
+      else if (button5.contains(Point(x, y)))//ponizej to co ma sie wykonac po nacisnieciu klawisza
+      {
+          
+          cout << "Go place 2 pick item 2\n" << endl;
+          // this icon only lights up if item has been found
+          // go to pre-recored are to sweep the item
+      }
   }
+  //if (event == EVENT_LBUTTONUP)
+  //{
+  //rectangle(canvas, button, Scalar(200, 200, 200), 2);
+  //}
+
+  // imshow(winName, canvas);
+  //waitKey(1);
+}
 
 
 
-class target_localization
+class target_localization_gui
 {
   ros::NodeHandle nh_;
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
-
- 
+  ros::Subscriber sub_detected_array;
+  
   
   //static void callBackFunc(int event,int x,int y, int flags,void* param);
   //static void callBackFuncStatic( int event, int x, int y, int flags, void* that );
@@ -105,12 +107,14 @@ class target_localization
 
 
 public:
-  target_localization()
+  target_localization_gui()
     : it_(nh_)
   {
     // Subscrive to input video feed and publish output video feed
-    image_sub_ = it_.subscribe("/image_raw", 1, &target_localization::imageCb, this);
+    image_sub_ = it_.subscribe("/image_raw", 1, &target_localization_gui::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
+    sub_detected_array = nh_.subscribe("detected_target",1, &target_localization_gui::object_detect_cb, this);
+
 
     buttonText="Search For Target";
     buttonText2="Reset";
@@ -192,12 +196,16 @@ public:
 
   }
 
-  ~target_localization()
+  ~target_localization_gui()
   {
     cv::destroyWindow(OPENCV_WINDOW);
     destroyAllWindows();
   }
 
+  void object_detect_cb(const target_localization::bbox_array::ConstPtr msg  )
+  {
+
+  }
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   { // routing not in use at momemnt
     cv_bridge::CvImagePtr cv_ptr;
@@ -231,7 +239,7 @@ public:
 int main(int argc, char **argv)
 {
   // Initialize ROS
-  ros::init(argc, argv, "target_localization");
-  target_localization tl;
+  ros::init(argc, argv, "target_localization_gui");
+  target_localization_gui tl;
   return 0;
 }

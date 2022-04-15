@@ -5,19 +5,38 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   roscpp
+  std_msgs
   sensor_msgs
   cv_bridge
   image_transport
+  message_generation
 )
 find_package(OpenCV REQUIRED)
-catkin_package(
+
+add_message_files(
+  FILES
+  bbox.msg
+  bbox_array.msg
 )
+
+
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+)
+
+catkin_package()
 
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
+
+catkin_package(
+  CATKIN_DEPENDS message_runtime
+)
+
 
 add_executable(target_localization src/target_localization.cpp)
 
