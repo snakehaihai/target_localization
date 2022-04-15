@@ -23,6 +23,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <target_localization/bbox_array.h>
 #include <target_localization/bbox.h>
+#include <darknet_ros/bbox_array.h>
+#include <darknet_ros/bbox.h>
+#include <sensor_msgs/LaserScan.h>
 ros::Publisher plane_pub;
 ros::Publisher ledge_pub;
 using namespace cv;
@@ -31,8 +34,9 @@ using namespace std;
 Mat3b canvas;
 string buttonText;
 string buttonText2;
-string winName,OPENCV_WINDOW;
+String winName;
 Rect button, button2, button3, button4, button5;
+  bool item1_found,item2_found,item3_found;
 void onMouse(int event, int x, int y, int flags, void* userdata)
 {
   if (event == EVENT_LBUTTONDOWN)
@@ -54,7 +58,9 @@ void onMouse(int event, int x, int y, int flags, void* userdata)
           cout << "Cancel mission clicked\n" << endl;
           // to be added here
           // run system script to cancel all events  kill them all
-
+          item1_found=false;
+          item2_found=false;
+          item3_found=false;
           putText(canvas(button), buttonText, Point(button.width*0.35, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
           putText(canvas(button2), buttonText2, Point(button.width*0.40, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
       }
@@ -98,9 +104,10 @@ class target_localization_gui
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
-  ros::Subscriber sub_detected_array;
-  
-  
+  ros::Subscriber sub_object_detector_array;
+  ros::Subscriber sub_2D_LIDAR_scan;
+  std::string item1,item2,item3;
+
   //static void callBackFunc(int event,int x,int y, int flags,void* param);
   //static void callBackFuncStatic( int event, int x, int y, int flags, void* that );
   //void callBackFunc( int event, int x, int y, int flags);
@@ -113,15 +120,21 @@ public:
     // Subscrive to input video feed and publish output video feed
     image_sub_ = it_.subscribe("/image_raw", 1, &target_localization_gui::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
-    sub_detected_array = nh_.subscribe("detected_target",1, &target_localization_gui::object_detect_cb, this);
-
+    sub_object_detector_array = nh_.subscribe("/YOLO_bboxes",1, &target_localization_gui::object_detect_cb, this);
+    sub_2D_LIDAR_scan = nh_.subscribe("/scan",1, &target_localization_gui::lidar_2d_scan_cb, this);
 
     buttonText="Search For Target";
     buttonText2="Reset";
     winName = "Simple GUI";
-    OPENCV_WINDOW = "Image window";
+
+    item1="bottle";
+    item2="mouse";
+    item2="scissors";
+    item1_found=false;
+    item2_found=false;
+    item3_found=false;
     ros::Rate r(10);
-    cv::namedWindow(OPENCV_WINDOW);
+
 
 
 
@@ -140,7 +153,8 @@ public:
     canvas = Mat3b(img.rows + button.height, img.cols, Vec3b(0, 0, 0));
     cv::Scalar overlayColor = cv::Scalar(50, 50, 50);
     cv::Mat overlayImage = cv::Mat(Size(img.cols/4, img.cols/4), CV_8UC3, overlayColor);
-
+    cv::Mat overlaybg = cv::Mat(Size(img.cols/4, img.cols/4), CV_8UC3, overlayColor);
+    
     Mat srcimg1 = imread("/home/av/ws_ugv_arm/src/target_localization/icon/1.png", -1);
     Mat srcimg2 = imread("/home/av/ws_ugv_arm/src/target_localization/icon/2.png", -1);
     Mat srcimg3 = imread("/home/av/ws_ugv_arm/src/target_localization/icon/3.png", -1);
@@ -156,38 +170,70 @@ public:
  
 
    
-    Mat insetImage1(canvas, button3);
-    srcimg1.copyTo(insetImage1);
-    Mat insetImage2(canvas, button4);
-    srcimg2.copyTo(insetImage2);
-    Mat insetImage3(canvas, button5);
-    srcimg3.copyTo(insetImage3);
+    // Mat insetImage1(canvas, button3);
+    // srcimg1.copyTo(insetImage1);
+    // Mat insetImage2(canvas, button4);
+    // srcimg2.copyTo(insetImage2);
+    // Mat insetImage3(canvas, button5);
+    // srcimg3.copyTo(insetImage3);
 
 
     putText(canvas(button), buttonText, Point(button.width*0.35, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
     putText(canvas(button2), buttonText2, Point(button.width*0.40, button.height*0.7), FONT_HERSHEY_TRIPLEX, 1, Scalar(0, 0, 0));
 
-    namedWindow(winName);
-    
+    namedWindow(winName,WINDOW_NORMAL);
+    setWindowProperty (winName, WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     //setMouseCallback(winName, this->callBackFunc, (void*)this);
-   // cv::setMouseCallback(winName, callBackFunc,(void*)this);
-   cv::setMouseCallback(winName, onMouse);
+    // cv::setMouseCallback(winName, callBackFunc,(void*)this);
+    cv::setMouseCallback(winName, onMouse);
 
 
     while (ros::ok())
     {
-      //srcimg1=0.5*srcimg1+0.1*overlayImage;
-      //srcimg2=0.5*srcimg2+0.1*overlayImage;
+      std::cout<<"Found "<<item1_found<< endl;
+      //
+      if(item1_found)
+      {
+        Mat insetImage1(canvas, button3);
+        srcimg1.copyTo(insetImage1);
+      }
+      else 
+        //srcimg1=0.5*srcimg1+0.1*overlayImage;
+      {
+        Mat insetImage1(canvas, button3);
+        overlaybg.copyTo(insetImage1);
+      }
 
-      Mat insetImage1(canvas, button3);
-      srcimg1.copyTo(insetImage1);
-      Mat insetImage2(canvas, button4);
-      srcimg2.copyTo(insetImage2);
-      Mat insetImage3(canvas, button5);
-      srcimg3.copyTo(insetImage3);
+
+      if(item2_found)
+      {
+        Mat insetImage2(canvas, button4);
+        srcimg2.copyTo(insetImage2);
+      }
+      else
+      //  srcimg2=0.5*srcimg2+0.1*overlayImage;
+       {
+        Mat insetImage2(canvas, button4);
+        overlaybg.copyTo(insetImage2);
+      }
+
+      if(item3_found)
+      {
+        Mat insetImage3(canvas, button5);
+        srcimg3.copyTo(insetImage3);
+      }
+      else
+        //srcimg3=0.5*srcimg3+0.1*overlayImage;
+      {
+        Mat insetImage3(canvas, button5);
+        overlaybg.copyTo(insetImage3);
+      }
+
+
       imshow(winName, canvas);
       char key =  cv::waitKey(1);
-
+      if( key == 27 )
+            return ;
       
       ros::spinOnce();
       r.sleep();
@@ -198,14 +244,43 @@ public:
 
   ~target_localization_gui()
   {
-    cv::destroyWindow(OPENCV_WINDOW);
+   
     destroyAllWindows();
   }
 
-  void object_detect_cb(const target_localization::bbox_array::ConstPtr msg  )
+
+  void lidar_2d_scan_cb(const sensor_msgs::LaserScan::ConstPtr msg)
   {
 
   }
+  void object_detect_cb(const darknet_ros::bbox_array::ConstPtr msg  )
+  {
+      //This pipeline is to subscibe the YOLO message with 
+      // string Class
+      // float32 prob
+      // uint32 xmin
+      // uint32 ymin
+      // uint32 xmax
+      // uint32 ymax
+      // uint32 xmid
+      // uint32 ymid
+    for(int i =0; i< msg->bboxes.size(); i++)
+    {
+      
+      if( msg->bboxes[i].Class.find(item1)!= string::npos)
+      {  item1_found=true;
+      }
+      if( msg->bboxes[i].Class.find(item2)!= string::npos)
+        item2_found=true;
+    
+      if( msg->bboxes[i].Class.find(item3)!= string::npos)
+        item3_found=true;    
+
+      //std::cout<<"Found "<<msg->bboxes[i].Class<< endl;
+      //printf("%s\n",msg->bboxes[0].Class);
+    }
+  }
+
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   { // routing not in use at momemnt
     cv_bridge::CvImagePtr cv_ptr;
@@ -224,7 +299,7 @@ public:
       cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
 
     // Update GUI Window
-    //cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+
     //cv::waitKey(1);
 
     // Output modified video stream

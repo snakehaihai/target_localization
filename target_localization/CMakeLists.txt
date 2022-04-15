@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   message_generation
+  darknet_ros
 )
 find_package(OpenCV REQUIRED)
 
