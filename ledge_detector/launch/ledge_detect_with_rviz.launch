@@ -1,0 +1,4 @@
+<launch>
+	<node name="ledge_detector" pkg="ledge_detector" type="ledge_detector" />
+	<node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find ledge_detector)/config/ledge_detect.rviz"/>
+</launch>
